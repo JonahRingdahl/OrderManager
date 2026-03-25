@@ -25,7 +25,7 @@ partial class OrderPage
     {
         this.components = new System.ComponentModel.Container();
         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-        this.ClientSize = new System.Drawing.Size(1280, 720);
+        this.ClientSize = new System.Drawing.Size(250, 300);
         this.Text = "Orders";
 
         orderNumLabel = new()
@@ -33,43 +33,43 @@ partial class OrderPage
             Name = "orderNumLabel",
             Text = "Order Number",
             AutoSize = true,
-            Location = new Point(300, 10)
+            Location = new Point(20, 10)
         };
         orderNumBox = new()
         {
             Name = "orderNumBox",
-            Location = new Point(300, 30)
+            Location = new Point(20, 30)
         };
         poNumLabel = new()
         {
             Name = "poNumLabel",
             Text = "PO Number",
             AutoSize = true,
-            Location = new Point(300, 60)
+            Location = new Point(20, 60)
         };
         poNumBox = new()
         {
             Name = "poNumBox",
-            Location = new Point(300, 80)
+            Location = new Point(20, 80)
         };
         pulledLabel = new()
         {
             Name = "pulledLabel",
             Text = "Is Pulled?",
             AutoSize = true,
-            Location = new Point(300, 110)
+            Location = new Point(20, 110)
         };
         pulledCheckBox = new()
         {
             Name = "pulledCheckBox",
-            Location = new Point(450, 110),
+            Location = new Point(100, 108),
             Checked = false
         };
 
         shippingMethodLabel = new()
         {
             Name = "shippingMethodLabel",
-            Location = new Point(600, 10),
+            Location = new Point(20, 140),
             AutoSize = true,
             Text = "Shipping method"
         };
@@ -77,7 +77,7 @@ partial class OrderPage
         shippingMethodBox = new()
         {
             Name = "shippingMethodBox",
-            Location = new Point(600, 30),
+            Location = new Point(20, 160),
             Size = new Size(90, 100)
         };
 
@@ -85,7 +85,7 @@ partial class OrderPage
         saveButton = new()
         {
             Name = "saveButton",
-            Location = new Point(800, 10),
+            Location = new Point(150, 30),
             AutoSize = true,
             Text = "Save"
         };
@@ -94,7 +94,7 @@ partial class OrderPage
         cancelButton = new()
         {
             Name = "cancelButton",
-            Location = new Point(800, 50),
+            Location = new Point(150, 70),
             AutoSize = true,
             Text = "Quit"
         };
