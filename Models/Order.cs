@@ -9,7 +9,7 @@ public enum ShippingMethod
     SHIPPING
 }
 
-public class Order(
+public class Order (
     bool isPulled,
     uint orderNumber,
     string poNumber,
@@ -28,8 +28,13 @@ public class Order(
 
     public int CompareTo(Order? obj) => OrderNumber.CompareTo(obj?.OrderNumber);
 
+    public void UndeleteOrder()
+    {
+        isDeleted = false;
+        UpdatedDate = DateTime.Now;
+
+    }
+
     public string DisplayOrder() =>
         $"{OrderNumber} / {PoNumber} / Shipping: {Method} / Pulled? {IsPulled} / DELETED: {isDeleted}\n\n";
 }
-
-

@@ -11,22 +11,24 @@ public partial class HomePage : Form
     private Order? selectedOrder = null;
     private string data = string.Empty;
     BindingList<Order> orders = [];
-    readonly OrderContext ctx = new();
 
     public HomePage()
     {
         InitializeComponent();
-        LoadOrders();
         CullOrders();
+        LoadOrders();
+        UpdateTotalOrdersButton_Clicked(null,null);
     }
 
     // Orders marked for deletion will be culled after two weeks
     private void CullOrders()
     {
+        OrderContext ctx = new();
         List<Order> markedOrders = [.. ctx.Orders.Where(o => o.isDeleted).AsNoTracking()];
         List<Order> deleteOrders = [];
 
-        foreach (var order in markedOrders) {
+        foreach (var order in markedOrders)
+        {
             if (DateTime.Now - order.UpdatedDate.Date > TimeSpan.FromDays(14))
                 deleteOrders.Add(order);
         }
@@ -48,6 +50,7 @@ public partial class HomePage : Form
 
     private void LoadOrders()
     {
+        OrderContext ctx = new();
         orders = [.. GetAllOrders(ctx)];
         orderGridView.DataSource = orders;
     }
@@ -56,17 +59,8 @@ public partial class HomePage : Form
     {
         orders.Clear();
 
-        var foundOrder = ctx.Orders.FirstOrDefault(o => o.PoNumber == searchBox.Text && !o.isDeleted);
-        if (foundOrder is not null)
-        {
-            orders.Add(foundOrder);
-            // SuccessBeep();
-        }
-        else
-            // FailedBeep();
-
-
-        orders.ResetBindings();
+        var searchText = searchBox.Text;
+        FindPO(searchText);
     }
 
     private async void OnButton_Clicked(object sender, EventArgs e)
@@ -74,21 +68,49 @@ public partial class HomePage : Form
         var ctx = new OrderContext();
 
         var success = uint.TryParse(searchBox.Text, out uint on);
-        orders.Clear();
 
         if (success)
+            FindSO(on);
+    }
+
+    private async void FindSO(uint so)
+    {
+        OrderContext ctx = new();
+
+        Order? foundOrder = await ctx.Orders.FirstOrDefaultAsync(o => o.OrderNumber == so);
+        if (foundOrder is null)
         {
-            var foundOrder = await ctx.Orders.FirstOrDefaultAsync(o => o.OrderNumber == on && !o.isDeleted);
-            if (foundOrder is not null)
-            {
-                orders.Add(foundOrder);
-                // SuccessBeep();
-            }
+            MessageBox.Show("Order Not Found", "Not Found", MessageBoxButtons.OK);
+            return;
         }
 
+        if (foundOrder.isDeleted)
+        {
+            var selection = MessageBox.Show("Mark as not deleted?", "Order is Deleted", MessageBoxButtons.OKCancel);
+            if (selection == DialogResult.OK)
+                foundOrder.UndeleteOrder();
+
+            await ctx.SaveChangesAsync();
+            return;
+        }
+
+        orders.Clear();
+        orders.Add(foundOrder);
         orders.ResetBindings();
     }
 
+    private async void FindPO(string po)
+    {
+        OrderContext ctx = new();
+
+        var allOrders = await ctx.Orders.AsNoTracking().ToListAsync();
+        orders.Clear();
+
+        foreach (var order in allOrders)
+            if (order.PoNumber == po) orders.Add(order);
+
+        orders.ResetBindings();
+    }
     private void PrintButton_Clicked(object sender, EventArgs e)
     {
         PrintDocument doc = new();
@@ -118,7 +140,7 @@ public partial class HomePage : Form
         }
     }
 
-    private void PrintPageHandler(object sender, PrintPageEventArgs e)
+    private async void PrintPageHandler(object sender, PrintPageEventArgs e)
     {
         int charactersOnPage = 0;
         e.Graphics?.MeasureString(
@@ -142,40 +164,31 @@ public partial class HomePage : Form
         e.HasMorePages = data.Length > 0;
     }
 
-    private void SearchBox_KeyDown(object sender, KeyEventArgs e)
+    private async void SearchBox_KeyDown(object sender, KeyEventArgs e)
     {
-        var ctx = new OrderContext();
+        var searchText = searchBox.Text;
 
-        Order? order = null;
+        if (e.KeyCode is not Keys.Enter)
+            return;
 
-        if (e.KeyCode == Keys.Enter)
-        {
-            bool search = uint.TryParse(searchBox.Text, out uint searchNum);
+        bool isOn = uint.TryParse(searchText, out uint searchNum);
 
-            if (search) {
-                order = ctx.Orders.FirstOrDefault(o => o.OrderNumber == searchNum && !o.isDeleted);
-            }
-            else {
-                order = ctx.Orders.FirstOrDefault(o => o.PoNumber == searchBox.Text && !o.isDeleted);
-            }
-
-            if (order is not null) {
-                orders.Clear();
-                orders.Add(order);
-                orders.ResetBindings();
-            }
-        }
+        if (isOn) 
+            FindSO(searchNum);
+        else
+            FindPO(searchText);
     }
 
     private void AddButton_Clicked(object sender, EventArgs e)
     {
+        OrderContext ctx = new();
         var orderPage = new OrderPage(null, this);
         orderPage.Show();
 
-        orderPage.OrderSaved += (obj, order) => {
-            var context = new OrderContext();
-            context.Orders.Add(order);
-            context.SaveChanges();
+        orderPage.OrderSaved += (obj, order) =>
+        {
+            ctx.Orders.Add(order);
+            ctx.SaveChanges();
             orders.Clear();
             LoadOrders();
             selectedOrder = null;
@@ -190,7 +203,8 @@ public partial class HomePage : Form
         var orderPage = new OrderPage(selectedOrder, this);
         orderPage.Show();
 
-        orderPage.OrderSaved += (obj, order) => {
+        orderPage.OrderSaved += (obj, order) =>
+        {
             var context = new OrderContext();
             order.isDeleted = false;
             context.Orders.Update(order);
@@ -202,13 +216,16 @@ public partial class HomePage : Form
 
     private void DeleteButton_Clicked(object sender, EventArgs e)
     {
-        if (selectedOrder is not null) {
+        OrderContext ctx = new();
+        if (selectedOrder is not null)
+        {
             selectedOrder.isDeleted = true;
             ctx.Orders.Update(selectedOrder);
             ctx.SaveChanges();
-            LoadOrders();      
+            LoadOrders();
         }
-        else {
+        else
+        {
             MessageBox.Show("There is no selected Order", "Select an Order", MessageBoxButtons.OK);
         }
 
@@ -230,14 +247,15 @@ public partial class HomePage : Form
     {
         var selectedCellCount = orderGridView.GetCellCount(DataGridViewElementStates.Selected);
 
-        if (selectedCellCount > 0) {
+        if (selectedCellCount > 0)
+        {
             var selectedRow = orderGridView.SelectedRows;
 
             if (selectedRow.Count > 0)
                 selectedOrder = selectedRow[0].DataBoundItem as Order;
         }
     }
-    
+
     private void ReviveOrder_Clicked(object sender, EventArgs e)
     {
         var foundOrder = searchBox.Text;
@@ -247,8 +265,11 @@ public partial class HomePage : Form
     private void QuitButton_Clicked(object sender, EventArgs e) => Environment.Exit(0);
 
     private static IEnumerable<Order> GetAllOrders(OrderContext ctx) =>
-        [.. ctx.Orders.AsNoTracking().Where(o => !o.isDeleted).OrderBy(o => o.OrderNumber), ..ctx.Orders.AsNoTracking().Where(o => o.isDeleted).OrderBy(o => o.OrderNumber)];
+        [.. ctx.Orders.AsNoTracking().Where(o => !o.isDeleted).OrderBy(o => o.OrderNumber), .. ctx.Orders.AsNoTracking().Where(o => o.isDeleted).OrderBy(o => o.OrderNumber)];
 
     private static IEnumerable<Order> GetOpenOrders(OrderContext ctx) =>
         [.. ctx.Orders.AsNoTracking().Where(o => !o.isDeleted).OrderBy(o => o.OrderNumber)];
+
+    private void UpdateTotalOrdersButton_Clicked(object? sender, EventArgs? e) =>
+        totalOrdersBox.Text = $"Number of Orders: {orders.Count(o => !o.isDeleted)}";
 }
