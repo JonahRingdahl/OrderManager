@@ -113,23 +113,18 @@ public partial class HomePage : Form
     }
     private void PrintButton_Clicked(object sender, EventArgs e)
     {
+        if (new PrintDialog().ShowDialog() != DialogResult.OK) return;
+
         PrintDocument doc = new();
         doc.PrintPage += PrintPageHandler;
 
         using (var ctx = new OrderContext())
         {
-            GetOpenOrders(ctx)
-                .ToList()
-                .ForEach(order =>
-                {
-                    data += order.DisplayOrder();
-                });
+            foreach (var order in GetOpenOrders(ctx))
+                data += order.DisplayOrder();
         }
 
-        try
-        {
-            doc.Print();
-        }
+        try { doc.Print(); }
         catch (Exception error)
         {
             MessageBox.Show(
