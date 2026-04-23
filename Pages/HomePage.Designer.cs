@@ -8,7 +8,7 @@ partial class HomePage
     private System.ComponentModel.IContainer components = null;
 
     private const int GRID_WIDTH = 500;
-    private const int GRID_HEIGHT = 500;
+    private const int GRID_HEIGHT = 600;
 
     /// <summary>
     ///  Clean up any resources being used.
