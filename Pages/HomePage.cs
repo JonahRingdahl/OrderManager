@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Drawing.Printing;
+using System.Text;
 using CompanyManager.Pages;
 using Microsoft.EntityFrameworkCore;
 using OrderManager.Models;
@@ -10,24 +11,36 @@ public partial class HomePage : Form
 {
     private Order? selectedOrder = null;
     private string data = string.Empty;
-    BindingList<Order> orders = [];
+    private BindingList<Order> openOrders = [];
+    private BindingList<Order> closedOrders = [];
 
     public HomePage()
     {
         InitializeComponent();
-        CullOrders();
-        LoadOrders();
+        openGridView.DataSource = openOrders;
+        closedGridView.DataSource = closedOrders;
+
+    }
+
+    protected override async void OnShown(EventArgs e)
+    {
+        base.OnShown(e);
+
+        await CullOrders();
+        await LoadOrders();
+
         UpdateTotalOrdersButton_Clicked(null,null);
     }
 
+
     // Orders marked for deletion will be culled after two weeks
-    private void CullOrders()
+    private static async Task CullOrders()
     {
-        OrderContext ctx = new();
-        List<Order> markedOrders = [.. ctx.Orders.Where(o => o.isDeleted).AsNoTracking()];
+        using OrderContext ctx = new();
+        var markedOrders = Order.GetClosedOrdersAsync(ctx);
         List<Order> deleteOrders = [];
 
-        foreach (var order in markedOrders)
+        await foreach (var order in markedOrders)
         {
             if (DateTime.Now - order.UpdatedDate.Date > TimeSpan.FromDays(14))
                 deleteOrders.Add(order);
@@ -39,43 +52,38 @@ public partial class HomePage : Form
         if (choice != DialogResult.OK) return;
 
         ctx.Orders.RemoveRange(deleteOrders);
-        ctx.SaveChanges();
+        await ctx.SaveChangesAsync();
     }
 
-    private void ClearButton_Clicked(object sender, EventArgs e)
+    private async void ClearButton_Clicked(object sender, EventArgs e)
     {
-        LoadOrders();
+        await LoadOrders();
         searchBox.Text = string.Empty;
     }
 
-    private void LoadOrders()
+    private async Task LoadOrders()
     {
-        OrderContext ctx = new();
-        orders = [.. GetAllOrders(ctx)];
-        orderGridView.DataSource = orders;
+        using OrderContext ctx = new();
+        await DisplayManyOpenOrders(Order.GetOpenOrdersAsync(ctx));
+        await DisplayManyClosedOrders(Order.GetClosedOrdersAsync(ctx));
     }
 
-    private void PoButton_Clicked(object sender, EventArgs e)
+    private async void PoButton_Clicked(object sender, EventArgs e)
     {
-        orders.Clear();
-
         var searchText = searchBox.Text;
-        FindPO(searchText);
+        await FindPO(searchText);
     }
 
     private async void OnButton_Clicked(object sender, EventArgs e)
     {
-        var ctx = new OrderContext();
-
         var success = uint.TryParse(searchBox.Text, out uint on);
 
-        if (success)
-            FindSO(on);
+        if (success) await FindSO(on);
     }
 
-    private async void FindSO(uint so)
+    private async Task FindSO(uint so)
     {
-        OrderContext ctx = new();
+        using OrderContext ctx = new();
 
         Order? foundOrder = await ctx.Orders.FirstOrDefaultAsync(o => o.OrderNumber == so);
         if (foundOrder is null)
@@ -86,32 +94,31 @@ public partial class HomePage : Form
 
         if (foundOrder.isDeleted)
         {
+            DisplayOneClosedOrder(foundOrder);
+
             var selection = MessageBox.Show("Mark as not deleted?", "Order is Deleted", MessageBoxButtons.OKCancel);
             if (selection == DialogResult.OK)
                 foundOrder.UndeleteOrder();
 
             await ctx.SaveChangesAsync();
-            return;
         }
-
-        orders.Clear();
-        orders.Add(foundOrder);
-        orders.ResetBindings();
+        else
+        {
+            DisplayOneOpenOrder(foundOrder);
+        }
     }
 
-    private async void FindPO(string po)
+    private async Task FindPO(string po)
     {
-        OrderContext ctx = new();
+        using OrderContext ctx = new();
 
-        var allOrders = await ctx.Orders.AsNoTracking().ToListAsync();
-        orders.Clear();
+        IAsyncEnumerable<Order> foundOpenOrders = Order.GetOpenOrdersAsync(ctx).Where(order => order.PoNumber.Contains(po));
+        var foundClosedOrders = Order.GetClosedOrdersAsync(ctx).Where(order => order.PoNumber.Contains(po));
 
-        foreach (var order in allOrders)
-            if (order.PoNumber == po) orders.Add(order);
-
-        orders.ResetBindings();
+        await DisplayManyOpenOrders(foundOpenOrders);
+        await DisplayManyClosedOrders(foundClosedOrders);
     }
-    private void PrintButton_Clicked(object sender, EventArgs e)
+    private async void PrintButton_Clicked(object sender, EventArgs e)
     {
         if (new PrintDialog().ShowDialog() != DialogResult.OK) return;
 
@@ -120,8 +127,9 @@ public partial class HomePage : Form
 
         using (var ctx = new OrderContext())
         {
-            foreach (var order in GetOpenOrders(ctx))
-                data += order.DisplayOrder();
+            var builder = new StringBuilder();
+            await foreach (var order in Order.GetOpenOrdersAsync(ctx))
+                builder.Append(data);
         }
 
         try { doc.Print(); }
@@ -135,7 +143,7 @@ public partial class HomePage : Form
         }
     }
 
-    private async void PrintPageHandler(object sender, PrintPageEventArgs e)
+    private void PrintPageHandler(object sender, PrintPageEventArgs e)
     {
         int charactersOnPage = 0;
         e.Graphics?.MeasureString(
@@ -169,55 +177,54 @@ public partial class HomePage : Form
         bool isOn = uint.TryParse(searchText, out uint searchNum);
 
         if (isOn) 
-            FindSO(searchNum);
+            await FindSO(searchNum);
         else
-            FindPO(searchText);
+            await FindPO(searchText);
     }
 
     private void AddButton_Clicked(object sender, EventArgs e)
     {
-        OrderContext ctx = new();
         var orderPage = new OrderPage(null, this);
         orderPage.Show();
 
-        orderPage.OrderSaved += (obj, order) =>
+        orderPage.OrderSaved += async (obj, order) =>
         {
+            using OrderContext ctx = new();
             ctx.Orders.Add(order);
-            ctx.SaveChanges();
-            orders.Clear();
-            LoadOrders();
+            await ctx.SaveChangesAsync();
+            openOrders.Clear();
+            await LoadOrders();
             selectedOrder = null;
         };
     }
 
     private void UpdateButton_Clicked(object sender, EventArgs e)
     {
-        if (selectedOrder is null)
-            return;
+        if (selectedOrder is null) return;
 
         var orderPage = new OrderPage(selectedOrder, this);
         orderPage.Show();
 
-        orderPage.OrderSaved += (obj, order) =>
+        orderPage.OrderSaved += async (obj, order) =>
         {
             var context = new OrderContext();
             order.isDeleted = false;
             context.Orders.Update(order);
-            context.SaveChanges();
-            LoadOrders();
+            await context.SaveChangesAsync();
+            await LoadOrders();
             selectedOrder = null;
         };
     }
 
-    private void DeleteButton_Clicked(object sender, EventArgs e)
+    private async void DeleteButton_Clicked(object sender, EventArgs e)
     {
-        OrderContext ctx = new();
         if (selectedOrder is not null)
         {
+        using OrderContext ctx = new();
             selectedOrder.isDeleted = true;
             ctx.Orders.Update(selectedOrder);
-            ctx.SaveChanges();
-            LoadOrders();
+            await ctx.SaveChangesAsync();
+            await LoadOrders();
         }
         else
         {
@@ -226,45 +233,67 @@ public partial class HomePage : Form
 
     }
 
-    // private void FailedBeep()
-    // {
-    //     Console.Beep();
-    //     Task.Delay(100);
-    //     Console.Beep();
-    // }
-
-    // private void SuccessBeep()
-    // {
-    //     Console.Beep();
-    // }
-
-    private void OrderGridView_SelectionChanged(object sender, EventArgs e)
+    private void OpenGridView_SelectionChanged(object sender, EventArgs e)
     {
-        var selectedCellCount = orderGridView.GetCellCount(DataGridViewElementStates.Selected);
+        var selectedCellCount = openGridView.GetCellCount(DataGridViewElementStates.Selected);
 
-        if (selectedCellCount > 0)
-        {
-            var selectedRow = orderGridView.SelectedRows;
+        if (selectedCellCount <= 0) return;
 
-            if (selectedRow.Count > 0)
-                selectedOrder = selectedRow[0].DataBoundItem as Order;
-        }
+        var selectedRow = openGridView.SelectedRows;
+
+        if (selectedRow.Count <= 0) return;
+
+        selectedOrder = selectedRow[0].DataBoundItem as Order;
+
+        if (closedGridView.SelectedRows.Count > 0) closedGridView.ClearSelection();
     }
 
-    private void ReviveOrder_Clicked(object sender, EventArgs e)
+    private void ClosedGridView_SelectionChanged(object sender, EventArgs e)
     {
-        var foundOrder = searchBox.Text;
+        var selectedCellCount = closedGridView.GetCellCount(DataGridViewElementStates.Selected);
 
+        if (selectedCellCount <= 0) return;
+
+        var selectedRow = closedGridView.SelectedRows;
+
+        if (selectedRow.Count <= 0) return;
+
+        selectedOrder = selectedRow[0].DataBoundItem as Order;
+
+        if (openGridView.SelectedRows.Count > 0) openGridView.ClearSelection();
     }
 
     private void QuitButton_Clicked(object sender, EventArgs e) => Environment.Exit(0);
 
-    private static IEnumerable<Order> GetAllOrders(OrderContext ctx) =>
-        [.. ctx.Orders.AsNoTracking().Where(o => !o.isDeleted).OrderBy(o => o.OrderNumber), .. ctx.Orders.AsNoTracking().Where(o => o.isDeleted).OrderBy(o => o.OrderNumber)];
-
-    private static IEnumerable<Order> GetOpenOrders(OrderContext ctx) =>
-        [.. ctx.Orders.AsNoTracking().Where(o => !o.isDeleted).OrderBy(o => o.OrderNumber)];
-
     private void UpdateTotalOrdersButton_Clicked(object? sender, EventArgs? e) =>
-        totalOrdersBox.Text = $"Number of Orders: {orders.Count(o => !o.isDeleted)}";
+        totalOrdersBox.Text = $"Number of Orders: {openOrders.Count}";
+
+    private void DisplayOneOpenOrder(Order foundOrder)
+    {
+        openOrders.Clear();
+        openOrders.Add(foundOrder);
+        closedOrders.Clear();
+    }
+
+    private void DisplayOneClosedOrder(Order foundOrder)
+    {
+        closedOrders.Clear();
+        closedOrders.Add(foundOrder);
+        openOrders.Clear();
+    }
+
+    private async Task DisplayManyOpenOrders(IAsyncEnumerable<Order> orders)
+    {
+        openOrders.Clear();
+        await foreach (var order in orders)
+            openOrders.Add(order);
+        
+    }
+    
+    private async Task DisplayManyClosedOrders(IAsyncEnumerable<Order> orders)
+    {
+        closedOrders.Clear();
+        await foreach(var order in orders)
+            closedOrders.Add(order);
+    }
 }

@@ -7,6 +7,9 @@ partial class HomePage
     /// </summary>
     private System.ComponentModel.IContainer components = null;
 
+    private const int GRID_WIDTH = 500;
+    private const int GRID_HEIGHT = 500;
+
     /// <summary>
     ///  Clean up any resources being used.
     /// </summary>
@@ -24,7 +27,7 @@ partial class HomePage
     {
         this.components = new System.ComponentModel.Container();
         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-        this.ClientSize = new System.Drawing.Size(900, 600);
+        this.ClientSize = new System.Drawing.Size(1280, 720);
         this.Text = "Order Manager";
 
         searchLabel = new()
@@ -129,18 +132,25 @@ partial class HomePage
         };
 
 
-        orderGridView = new()
+        openGridView = new()
         {
             Name = "orderGridView",
             Location = new Point(200, 10),
-            Size = new Size(650, 500)
+            Size = new Size(GRID_WIDTH, GRID_HEIGHT)
         };
-        orderGridView.SelectionChanged += OrderGridView_SelectionChanged;
+        openGridView.SelectionChanged += OpenGridView_SelectionChanged;
+
+        closedGridView = new()
+        {
+            Name = "closedGridView",
+            Location = new Point(200 + GRID_WIDTH + 50, 10),
+            Size = new Size(GRID_WIDTH, GRID_HEIGHT)
+        };
+        closedGridView.SelectionChanged += ClosedGridView_SelectionChanged;
 
 
 
         Controls.Add(printButton);
-        Controls.Add(orderGridView);
         Controls.Add(searchLabel);
         Controls.Add(searchBox);
         Controls.Add(onButton);
@@ -150,13 +160,16 @@ partial class HomePage
         Controls.Add(updateButton);
         Controls.Add(deleteButton);
         Controls.Add(quitButton);
+
+        Controls.Add(openGridView);
+        Controls.Add(closedGridView);
+
         Controls.Add(updateTotalOrdersButton);
         Controls.Add(totalOrdersBox);
     }
 
 
     Button printButton;
-    DataGridView orderGridView;
 
     Label searchLabel;
     TextBox searchBox;
@@ -168,6 +181,9 @@ partial class HomePage
     Button updateButton;
     Button deleteButton;
     Button quitButton;
+
+    DataGridView openGridView;
+    DataGridView closedGridView;
 
     Button updateTotalOrdersButton;
     Label totalOrdersBox;

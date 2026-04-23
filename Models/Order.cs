@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 
 namespace OrderManager.Models;
 
@@ -37,4 +38,43 @@ public class Order (
 
     public string DisplayOrder() =>
         $"{OrderNumber} / {PoNumber} / Shipping: {Method} / Pulled? {IsPulled} / DELETED: {isDeleted}\n\n";
+
+    public static IAsyncEnumerable<Order> GetOpenOrdersAsync(OrderContext ctx, bool descending = false)
+    {
+        var openOrders = ctx.Orders.AsNoTracking().Where(NotDeletedFunc);
+
+        openOrders = descending ?
+        openOrders.OrderByDescending(OrderNumberOrderingFunc):
+        openOrders.OrderBy(OrderNumberOrderingFunc);
+
+        return openOrders.ToAsyncEnumerable();
+    }
+
+    public static IAsyncEnumerable<Order> GetClosedOrdersAsync(OrderContext ctx, bool descending = false)
+    {
+        var closedOrders = ctx.Orders.AsNoTracking().Where(IsDeletedFunc);
+
+        closedOrders = descending ?
+        closedOrders.OrderByDescending(OrderNumberOrderingFunc):
+        closedOrders.OrderBy(OrderNumberOrderingFunc);
+
+        return closedOrders.ToAsyncEnumerable();
+    }
+
+    public static IAsyncEnumerable<Order> GetAllOrdersAsync(OrderContext ctx, bool descending = false)
+    {
+        var order= ctx.Orders.AsNoTracking();
+
+        var orderedOrders = descending ?
+        order.OrderByDescending(OrderNumberOrderingFunc):
+        order.OrderBy(OrderNumberOrderingFunc);
+
+        return orderedOrders.ToAsyncEnumerable();
+    }
+
+    private static bool NotDeletedFunc(Order order) => !order.isDeleted;
+    private static bool IsDeletedFunc(Order order) => order.isDeleted;
+    private static uint OrderNumberOrderingFunc(Order order) => order.OrderNumber;
+
+
 }
