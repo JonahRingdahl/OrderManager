@@ -10,7 +10,9 @@ namespace OrderManager.Pages;
 public partial class HomePage : Form
 {
     private Order? selectedOrder = null;
-    private string data = string.Empty;
+    private string printData = string.Empty;
+    private int printIndex = 0;
+    private readonly Font printFont = new("Arial", 12);
     private BindingList<Order> openOrders = [];
     private BindingList<Order> closedOrders = [];
 
@@ -122,15 +124,11 @@ public partial class HomePage : Form
     {
         if (new PrintDialog().ShowDialog() != DialogResult.OK) return;
 
+        await LoadPrinterDataAsync();
+
         PrintDocument doc = new();
         doc.PrintPage += PrintPageHandler;
-
-        using (var ctx = new OrderContext())
-        {
-            var builder = new StringBuilder();
-            await foreach (var order in Order.GetOpenOrdersAsync(ctx))
-                builder.Append(data);
-        }
+        printIndex = 0;
 
         try { doc.Print(); }
         catch (Exception error)
@@ -143,28 +141,42 @@ public partial class HomePage : Form
         }
     }
 
+    private async Task LoadPrinterDataAsync()
+    {
+        using var ctx = new OrderContext();
+        var builder = new StringBuilder();
+        await foreach (var order in Order.GetOpenOrdersAsync(ctx))
+            builder.Append(order.DisplayOrder());
+
+        printData = builder.ToString();
+    }
+
     private void PrintPageHandler(object sender, PrintPageEventArgs e)
     {
-        int charactersOnPage = 0;
+        string remaining = printData[printIndex..];
+        int charsFitted = 0;
+
         e.Graphics?.MeasureString(
-            data,
-            new Font("Ariel", 12),
+            remaining,
+            printFont,
             e.MarginBounds.Size,
             StringFormat.GenericTypographic,
-            out charactersOnPage,
+            out charsFitted,
             out _
         );
 
         e.Graphics?.DrawString(
-            data,
-            new Font("Ariel", 12),
+            remaining,
+            printFont,
             Brushes.Black,
             e.MarginBounds,
             StringFormat.GenericTypographic
         );
 
-        data = data[charactersOnPage..];
-        e.HasMorePages = data.Length > 0;
+        printIndex += charsFitted;
+        e.HasMorePages = printIndex < printData.Length;
+
+        if (!e.HasMorePages) printIndex = 0;
     }
 
     private async void SearchBox_KeyDown(object sender, KeyEventArgs e)
