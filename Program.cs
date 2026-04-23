@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using OrderManager.Models;
 using OrderManager.Pages;
 
 namespace OrderManager;
@@ -10,6 +12,10 @@ static class Program
     [STAThread]
     static void Main()
     {
+        using (var db = new OrderContext())
+        {
+            db.Database.Migrate(); 
+        }
         // To customize application configuration such as set high DPI settings or default font,
         // see https://aka.ms/applicationconfiguration.
         ApplicationConfiguration.Initialize();
