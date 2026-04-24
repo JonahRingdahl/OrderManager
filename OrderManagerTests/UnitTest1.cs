@@ -1,4 +1,4 @@
-﻿namespace OrderManager.Tests;
+﻿namespace OrderManagerTests;
 
 public class UnitTest1
 {

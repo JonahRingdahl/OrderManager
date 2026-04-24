@@ -3,4 +3,5 @@
     <Project Path="OrderMangerApp/OrderManagerApp.csproj" />
   </Folder>
   <Project Path="OrderManager.Tests/OrderManager.Tests.csproj" />
+  <Project Path="OrderManagerTests/OrderManagerTests.csproj" />
 </Solution>
