@@ -37,4 +37,4 @@ jobs:
       run: dotnet build OrderManager.slnx --configuration Release --no-restore
 
     - name: Run tests
-      run: dotnet test OrderManager.slnx --no-build --verbosity normal
+      run: dotnet test OrderManager.slnx --configuration Release --no-build --verbosity normal
