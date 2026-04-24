@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/OrderMangerApp/">
+    <Project Path="OrderMangerApp/OrderManagerApp.csproj" />
+  </Folder>
+  <Project Path="OrderManager.Tests/OrderManager.Tests.csproj" />
+</Solution>
