@@ -1,7 +1,4 @@
 <Solution>
-  <Folder Name="/OrderMangerApp/">
-    <Project Path="OrderMangerApp/OrderManagerApp.csproj" />
-  </Folder>
-  <Project Path="OrderManager.Tests/OrderManager.Tests.csproj" />
+  <Project Path="OrderMangerApp/OrderManagerApp.csproj" />
   <Project Path="OrderManagerTests/OrderManagerTests.csproj" />
 </Solution>
