@@ -39,7 +39,7 @@ public partial class HomePage : Form
     private static async Task CullOrders()
     {
         using OrderContext ctx = new();
-        var markedOrders = Order.GetClosedOrdersAsync(ctx);
+        var markedOrders = OrderContext.GetClosedOrdersAsync(ctx);
         List<Order> deleteOrders = [];
 
         await foreach (var order in markedOrders)
@@ -66,8 +66,8 @@ public partial class HomePage : Form
     private async Task LoadOrders()
     {
         using OrderContext ctx = new();
-        await DisplayManyOpenOrders(Order.GetOpenOrdersAsync(ctx));
-        await DisplayManyClosedOrders(Order.GetClosedOrdersAsync(ctx));
+        await DisplayManyOpenOrders(OrderContext.GetOpenOrdersAsync(ctx));
+        await DisplayManyClosedOrders(OrderContext.GetClosedOrdersAsync(ctx));
     }
 
     private async void PoButton_Clicked(object sender, EventArgs e)
@@ -114,8 +114,8 @@ public partial class HomePage : Form
     {
         using OrderContext ctx = new();
 
-        IAsyncEnumerable<Order> foundOpenOrders = Order.GetOpenOrdersAsync(ctx).Where(order => order.PoNumber.Contains(po));
-        var foundClosedOrders = Order.GetClosedOrdersAsync(ctx).Where(order => order.PoNumber.Contains(po));
+        IAsyncEnumerable<Order> foundOpenOrders = OrderContext.GetOpenOrdersAsync(ctx).Where(order => order.PoNumber.Contains(po));
+        var foundClosedOrders = OrderContext.GetClosedOrdersAsync(ctx).Where(order => order.PoNumber.Contains(po));
 
         await DisplayManyOpenOrders(foundOpenOrders);
         await DisplayManyClosedOrders(foundClosedOrders);
@@ -145,7 +145,7 @@ public partial class HomePage : Form
     {
         using var ctx = new OrderContext();
         var builder = new StringBuilder();
-        await foreach (var order in Order.GetOpenOrdersAsync(ctx))
+        await foreach (var order in OrderContext.GetOpenOrdersAsync(ctx))
             builder.Append(order.DisplayOrder());
 
         printData = builder.ToString();
