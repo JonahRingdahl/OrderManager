@@ -6,8 +6,12 @@ public class OrderContext() : DbContext
 {
     public DbSet<Order> Orders { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
-        optionsBuilder.UseSqlite("Data Source=orders.db");
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        string path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+
+        optionsBuilder.UseSqlite($"Data Source={path}/orders.db");
+    }
 
     public static IAsyncEnumerable<Order> GetOpenOrdersAsync(OrderContext ctx, ShippingMethod? method = null, bool descending = false)
     {
