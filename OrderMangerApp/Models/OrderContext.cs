@@ -10,7 +10,9 @@ public class OrderContext() : DbContext
     {
         string path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
-        optionsBuilder.UseSqlite($"Data Source={path}/orders.db");
+        string db_path = Path.Combine(path, "orders.db");
+
+        optionsBuilder.UseSqlite($"Data Source={db_path}");
     }
 
     public static IAsyncEnumerable<Order> GetOpenOrdersAsync(OrderContext ctx, ShippingMethod? method = null, bool descending = false)
